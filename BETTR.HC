@@ -124,14 +124,22 @@ U0 FreeTOML(TOMLFile *toml_file) {
       TOMLSection *section = &toml_file->sections[i];
       if (section->values) {
         for (j = 0; j < section->value_count; ++j) {
-          Free(section->values[j].key);
-          Free(section->values[j].value);
+          if (section->values[j].key) {
+            Free(section->values[j].key);
+          }
+          if (section->values[j].value) {
+            Free(section->values[j].value);
+          }
         }
         Free(section->values);
       }
-      Free(section->name);
+      if (section->name) {
+        Free(section->name);
+      }
     }
-    Free(toml_file->sections);
+    if (toml_file->sections) {
+      Free(toml_file->sections);
+    }
     Free(toml_file);
   }
 }
@@ -149,6 +157,8 @@ U0 PrintTOMLContent(TOMLFile *toml_file) {
     }
 }
 
+// This isn't a permanent function.
+// This is just an example of how to use this code.
 U0 Bettr() {
     // Replace "path/to/your/file.toml" with the actual path to the TOML file you want to read.
     TOMLFile *toml_file = ReadTOMLFile("Test.toml");
@@ -159,4 +169,3 @@ U0 Bettr() {
         Print("Failed to read TOML file.\n");
     }
 }
-Bettr;
