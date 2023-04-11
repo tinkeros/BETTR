@@ -51,9 +51,9 @@ U0 ParseLine(U8 *line, TOMLValue *value) {
 
 U0 ParseSection(U8 *line, TOMLSection *section) {
     U64 length = StrLen(line);
-    section->name = MAlloc(length - 1);
-    MemCpy(section->name, line + 1, length - 2);
-    section->name[length - 2] = 0;
+    section->name = MAlloc(length - 2);
+    MemCpy(section->name, line + 1, length - 3);
+    section->name[length - 3] = 0;
 }
 
 TOMLFile *ReadTOMLFile(U8 *file_path) {
@@ -90,8 +90,8 @@ TOMLFile *ReadTOMLFile(U8 *file_path) {
         MemCpy(&toml_file->sections[toml_file->section_count], &section, sizeof(TOMLSection));
         toml_file->section_count++;
         current_section = &toml_file->sections[toml_file->section_count - 1];
-        current_section->values = 0; 
-        current_section->value_count = 0;  
+        current_section->values = 0;
+        current_section->value_count = 0;
       } else if (line_buf[0] != 0 && line_buf[0] != '\n') {
         TOMLValue value;
         ParseLine(line_buf, &value);
@@ -143,7 +143,6 @@ U0 FreeTOML(TOMLFile *toml_file) {
     Free(toml_file);
   }
 }
-
 
 U0 PrintTOMLContent(TOMLFile *toml_file) {
     U32 i, j;
