@@ -15,7 +15,7 @@ class TOMLFile {
     U32 section_count;
 };
 
-U0 parse_line(U8 *line, TOMLValue *value) {
+U0 ParseLine(U8 *line, TOMLValue *value) {
     I64 equals_index = -1;
     U64 i;
     for (i = 0; line[i] != 0; ++i) {
@@ -26,24 +26,37 @@ U0 parse_line(U8 *line, TOMLValue *value) {
     }
 
     if (equals_index != -1) {
-        value->key = MAlloc(equals_index + 1);
-        MemCpy(value->key, line, equals_index);
-        value->key[equals_index] = 0;
+        U8 *key_start = line;
+        U8 *key_end = line + equals_index - 1;
+        while (key_end > key_start && *key_end == ' ') {
+            key_end--;
+        }
 
-        U64 value_len = StrLen(line + equals_index + 1);
+        U8 *value_start = line + equals_index + 1;
+        while (*value_start == ' ') {
+            value_start++;
+        }
+
+        U64 key_len = key_end - key_start + 1;
+        U64 value_len = StrLen(value_start);
+
+        value->key = MAlloc(key_len + 1);
+        MemCpy(value->key, key_start, key_len);
+        value->key[key_len] = 0;
+
         value->value = MAlloc(value_len + 1);
-        MemCpy(value->value, line + equals_index + 1, value_len + 1);
+        MemCpy(value->value, value_start, value_len + 1);
     }
 }
 
-U0 parse_section(U8 *line, TOMLSection *section) {
+U0 ParseSection(U8 *line, TOMLSection *section) {
     U64 length = StrLen(line);
     section->name = MAlloc(length - 1);
     MemCpy(section->name, line + 1, length - 2);
     section->name[length - 2] = 0;
 }
 
-TOMLFile *read_toml_file(U8 *file_path) {
+TOMLFile *ReadTOMLFile(U8 *file_path) {
   TOMLFile *toml_file = MAlloc(sizeof(TOMLFile));
   toml_file->section_count = 0;
   toml_file->sections = 0;
@@ -67,7 +80,7 @@ TOMLFile *read_toml_file(U8 *file_path) {
 
       if (line_buf[0] == '[') {
         TOMLSection section;
-        parse_section(line_buf, &section);
+        ParseSection(line_buf, &section);
         TOMLSection *new_sections = MAlloc((toml_file->section_count + 1) * sizeof(TOMLSection));
         if (toml_file->sections) {
           MemCpy(new_sections, toml_file->sections, toml_file->section_count * sizeof(TOMLSection));
@@ -77,9 +90,11 @@ TOMLFile *read_toml_file(U8 *file_path) {
         MemCpy(&toml_file->sections[toml_file->section_count], &section, sizeof(TOMLSection));
         toml_file->section_count++;
         current_section = &toml_file->sections[toml_file->section_count - 1];
+        current_section->values = 0; 
+        current_section->value_count = 0;  
       } else if (line_buf[0] != 0 && line_buf[0] != '\n') {
         TOMLValue value;
-        parse_line(line_buf, &value);
+        ParseLine(line_buf, &value);
         if (current_section) {
           TOMLValue *new_values = MAlloc((current_section->value_count + 1) * sizeof(TOMLValue));
           if (current_section->values) {
@@ -102,7 +117,7 @@ TOMLFile *read_toml_file(U8 *file_path) {
   return toml_file;
 }
 
-U0 free_toml_file(TOMLFile *toml_file) {
+U0 FreeTOML(TOMLFile *toml_file) {
   if (toml_file) {
     I64 i, j;
     for (i = 0; i < toml_file->section_count; ++i) {
@@ -121,7 +136,8 @@ U0 free_toml_file(TOMLFile *toml_file) {
   }
 }
 
-U0 print_toml_file(TOMLFile *toml_file) {
+
+U0 PrintTOMLContent(TOMLFile *toml_file) {
     U32 i, j;
     for (i = 0; i < toml_file->section_count; ++i) {
         TOMLSection *section = &toml_file->sections[i];
@@ -133,14 +149,14 @@ U0 print_toml_file(TOMLFile *toml_file) {
     }
 }
 
-U0 main() {
+U0 Bettr() {
     // Replace "path/to/your/file.toml" with the actual path to the TOML file you want to read.
-    TOMLFile *toml_file = read_toml_file("Test.toml");
-
+    TOMLFile *toml_file = ReadTOMLFile("Test.toml");
     if (toml_file) {
-        print_toml_file(toml_file);
-        free_toml_file(toml_file);
+        PrintTOMLContent(toml_file);
+        FreeTOML(toml_file);
     } else {
         Print("Failed to read TOML file.\n");
     }
 }
+Bettr;
