@@ -58,7 +58,7 @@ U0 ParseSection(U8 *line, TOMLSection *section) {
 
 TOMLFile *ReadTOMLFile(U8 *file_path) {
   TOMLFile *toml_file = MAlloc(sizeof(TOMLFile));
-  MemSet(toml_file, 0, sizeof(TOMLFile)); 
+  MemSet(toml_file, 0, sizeof(TOMLFile));
   toml_file->section_count = 0;
   toml_file->sections = 0;
 
@@ -96,15 +96,17 @@ TOMLFile *ReadTOMLFile(U8 *file_path) {
       } else if (line_buf[0] != 0 && line_buf[0] != '\n') {
         TOMLValue value;
         ParseLine(line_buf, &value);
-        if (current_section) {
-          TOMLValue *new_values = MAlloc((current_section->value_count + 1) * sizeof(TOMLValue));
-          if (current_section->values) {
-            MemCpy(new_values, current_section->values, current_section->value_count * sizeof(TOMLValue));
-            Free(current_section->values);
+        if (value.key && value.value) {
+          if (current_section) {
+            TOMLValue *new_values = MAlloc((current_section->value_count + 1) * sizeof(TOMLValue));
+            if (current_section->values) {
+              MemCpy(new_values, current_section->values, current_section->value_count * sizeof(TOMLValue));
+              Free(current_section->values);
+            }
+            current_section->values = new_values;
+            MemCpy(&current_section->values[current_section->value_count], &value, sizeof(TOMLValue));
+            current_section->value_count++;
           }
-          current_section->values = new_values;
-          MemCpy(&current_section->values[current_section->value_count], &value, sizeof(TOMLValue));
-          current_section->value_count++;
         }
       }
 
