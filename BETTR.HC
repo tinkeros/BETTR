@@ -24,8 +24,10 @@ class TOMLFile {
   U32 section_count;
 };
 
-//  Detect the type of a value. Types are I32
+// Detect the type of a value. Types are I32
 I32 DetectValueType(U8 * value_start) {
+  if (!value_start) return -1;
+
   if ( * value_start == '\"') {
     return TOML_VALUE_STRING;
   } else if (StrFirstOcc(value_start, ".") != NULL) {
@@ -39,6 +41,8 @@ I32 DetectValueType(U8 * value_start) {
 
 // ParseLine reads a single line of text from the TOML file and stores the key-value pair in the provided TOMLValue.
 U0 ParseLine(U8 * line, TOMLValue * value) {
+  if (!line || !value) return;
+
   MemSet(value, 0, sizeof(TOMLValue));
   U8 * equals = StrFirstOcc(line, "=");
   if (!equals) return;
@@ -61,6 +65,7 @@ U0 ParseLine(U8 * line, TOMLValue * value) {
   U64 value_len = StrLen(value_start);
 
   value -> key = MAlloc(key_len + 1);
+  if (!value -> key) return;
   MemCpy(value -> key, key_start, key_len);
   value -> key[key_len] = 0;
 
@@ -72,6 +77,10 @@ U0 ParseLine(U8 * line, TOMLValue * value) {
     value_start++; // Exclude the first quote
   }
   value -> value = MAlloc(value_len + 1);
+  if (!value -> value) {
+    Free(value -> key);
+    return;
+  }
   MemCpy(value -> value, value_start, value_len);
   value -> value[value_len] = 0;
 }
@@ -90,11 +99,11 @@ U0 ParseSection(U8 * line, TOMLSection * section) {
   U8 * section_end = StrFirstOcc(section_start, "]");
   if (!section_end) return;
 
-  U64 length = section_end - section_start;
+  U64 length = section_end - section_start - 1;
 
-  section -> name = MAlloc(length);
-  MemCpy(section -> name, section_start + 1, length - 1);
-  section -> name[length - 1] = 0;
+  section -> name = MAlloc(length + 1);
+  MemCpy(section -> name, section_start + 1, length);
+  section -> name[length] = 0;
 }
 
 // ReadTOMLFile reads the contents of a TOML file and returns a TOMLFile structure containing the parsed data.
@@ -153,7 +162,6 @@ TOMLFile * ReadTOMLFile(U8 * file_path) {
         // If the line is not a section, parse it as a key-value pair
         TOMLValue value;
         ParseLine(trimmed_line, & value);
-
         // Add the parsed key-value pair to the current section
         if (current_section) {
           TOMLValue * new_values = MAlloc((current_section -> value_count + 1) * sizeof(TOMLValue));
@@ -167,68 +175,59 @@ TOMLFile * ReadTOMLFile(U8 * file_path) {
         }
       }
 
-      // Move to the next line
+      // Move on to the next line
       line_buf = next_line;
     }
+
+    // Free the file data
     Free(file_data);
-  } else {
-    Print("Failed to open file: %s\n", file_path);
   }
 
   return toml_file;
 }
 
-// FreeTOMLFile deallocates memory used by a TOMLFile structure.
+// FreeTOMLFile deallocates memory associated with a TOMLFile structure.
 U0 FreeTOMLFile(TOMLFile * toml_file) {
-  if (toml_file) {
-    I64 i, j;
-    for (i = 0; i < toml_file -> section_count; ++i) {
-      TOMLSection * section = & toml_file -> sections[i];
-      if (section -> values) {
-        for (j = 0; j < section -> value_count; ++j) {
-          if (section -> values[j].key) {
-            Free(section -> values[j].key);
-          }
-          if (section -> values[j].value) {
-            Free(section -> values[j].value);
-          }
-        }
-        Free(section -> values);
-      }
-      if (section -> name) {
-        Free(section -> name);
-      }
+  if (!toml_file) return;
+  U64 section_idx, value_idx;
+  for (section_idx = 0; section_idx < toml_file -> section_count; section_idx++) {
+    TOMLSection * section = & toml_file -> sections[section_idx];
+    if (section -> name) Free(section -> name);
+    for (value_idx = 0; value_idx < section -> value_count; value_idx++) {
+      TOMLValue * value = & section -> values[value_idx];
+      if (value -> key) Free(value -> key);
+      if (value -> value) Free(value -> value);
     }
-    if (toml_file -> sections) {
-      Free(toml_file -> sections);
-    }
-    Free(toml_file);
+    if (section -> values) Free(section -> values);
   }
+
+  if (toml_file -> sections) Free(toml_file -> sections);
+  Free(toml_file);
 }
 
-// FindTOMLSection searches for a section in a TOMLFile by its name and returns a pointer to it.
+// FindTOMLSection finds a section in a TOML file by its name.
 TOMLSection * FindTOMLSection(TOMLFile * toml_file, U8 * section_name) {
-  if (toml_file && section_name) {
-    U32 i;
-    for (i = 0; i < toml_file -> section_count; ++i) {
-      if (StrCmp(toml_file -> sections[i].name, section_name) == 0) {
-        return & toml_file -> sections[i];
-      }
+  if (!toml_file || !section_name) return NULL;
+  U64 i;
+  for (i = 0; i < toml_file -> section_count; i++) {
+    if (StrCmp(toml_file -> sections[i].name, section_name) == 0) {
+      return & toml_file -> sections[i];
     }
   }
+
   return NULL;
 }
 
-// FindTOMLValue searches for a key-value pair in a TOMLSection by its key and returns a pointer to it.
+// FindTOMLValue finds a value in a TOML section by its key.
 TOMLValue * FindTOMLValue(TOMLSection * section, U8 * key) {
-  if (section && key) {
-    U32 i;
-    for (i = 0; i < section -> value_count; ++i) {
-      if (StrCmp(section -> values[i].key, key) == 0) {
-        return & section -> values[i];
-      }
+  if (!section || !key) return NULL;
+  U64 i;
+  for (i = 0; i < section -> value_count; i++) {
+    if (StrCmp(section -> values[i].key, key) == 0) {
+      return & section -> values[i];
     }
   }
+
   return NULL;
 }
 
@@ -288,23 +287,23 @@ U8 * TypeToString(I32 type) {
   }
 }
 
-// PrintTOMLContent is a debug function to print the content of a TOMLFile structure.
+// PrintTOMLContent prints the content of a TOML file.
 U0 PrintTOMLContent(TOMLFile * toml_file) {
-  U32 i, j;
-  for (i = 0; i < toml_file -> section_count; ++i) {
-    TOMLSection * section = & toml_file -> sections[i];
-    "\n";
-    Print("Section: %s\n", section -> name);
-    for (j = 0; j < section -> value_count; ++j) {
-      TOMLValue * value = & section -> values[j];
-      U8 * type_string = TypeToString(value -> type);
-      Print("  Key: %s, Value: %s, Type: %s\n", value -> key, value -> value, type_string);
+  if (!toml_file) return;
+  U64 section_idx, value_idx;
+  for (section_idx = 0; section_idx < toml_file -> section_count; section_idx++) {
+    TOMLSection * section = & toml_file -> sections[section_idx];
+    "[%s]\n", section -> name;
+
+    for (value_idx = 0; value_idx < section -> value_count; value_idx++) {
+      TOMLValue * value = & section -> values[value_idx];
+      "%s = %s (%s)\n", value -> key, value -> value, TypeToString(value -> type);
     }
+
+    "\n";
   }
 }
 
-// This isn't a permanent function.
-// This is just an example of how to use this code.
 U0 Bettr() {
   // Replace "path/to/your/file.toml" with the actual path to the TOML file you want to read.
   TOMLFile * toml_file = ReadTOMLFile("Test.toml");
