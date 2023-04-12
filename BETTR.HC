@@ -21,6 +21,9 @@ U0 ParseLine(U8 *line, TOMLValue *value) {
 
     U8 *key_start = line;
     U8 *key_end = equals - 1;
+    while (key_start < key_end && *key_start == ' ') {
+        key_start++;
+    }
     while (key_end > key_start && *key_end == ' ') {
         key_end--;
     }
@@ -35,12 +38,11 @@ U0 ParseLine(U8 *line, TOMLValue *value) {
 
     value->key = MAlloc(key_len + 1);
     MemCpy(value->key, key_start, key_len);
-    value->key[key_len] = 0; 
+    value->key[key_len] = 0;
 
     value->value = MAlloc(value_len + 1);
     MemCpy(value->value, value_start, value_len + 1);
 }
-
 U0 ParseSection(U8 *line, TOMLSection *section) {
     MemSet(section, 0, sizeof(TOMLSection)); 
 
