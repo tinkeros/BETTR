@@ -1,5 +1,4 @@
 class TOMLValue {
-    U8 type;
     U8 *key;
     U8 *value;
 };
@@ -16,48 +15,50 @@ class TOMLFile {
 };
 
 U0 ParseLine(U8 *line, TOMLValue *value) {
-    I64 equals_index = -1;
-    U64 i;
-    for (i = 0; line[i] != 0; ++i) {
-        if (line[i] == '=') {
-        equals_index = i;
-        break;
-        }
+    MemSet(value, 0, sizeof(TOMLValue));
+    U8 *equals = StrFirstOcc(line, "=");
+    if (!equals) return;
+
+    U8 *key_start = line;
+    U8 *key_end = equals - 1;
+    while (key_end > key_start && *key_end == ' ') {
+        key_end--;
     }
 
-    if (equals_index != -1) {
-        U8 *key_start = line;
-        U8 *key_end = line + equals_index - 1;
-        while (key_end > key_start && *key_end == ' ') {
-            key_end--;
-        }
-
-        U8 *value_start = line + equals_index + 1;
-        while (*value_start == ' ') {
-            value_start++;
-        }
-
-        U64 key_len = key_end - key_start + 1;
-        U64 value_len = StrLen(value_start);
-
-        value->key = MAlloc(key_len + 1);
-        MemCpy(value->key, key_start, key_len);
-        value->key[key_len] = 0;
-
-        value->value = MAlloc(value_len + 1);
-        MemCpy(value->value, value_start, value_len + 1);
+    U8 *value_start = equals + 1;
+    while (*value_start == ' ') {
+        value_start++;
     }
+
+    U64 key_len = key_end - key_start + 1;
+    U64 value_len = StrLen(value_start);
+
+    value->key = MAlloc(key_len + 1);
+    MemCpy(value->key, key_start, key_len);
+    value->key[key_len] = 0; 
+
+    value->value = MAlloc(value_len + 1);
+    MemCpy(value->value, value_start, value_len + 1);
 }
 
 U0 ParseSection(U8 *line, TOMLSection *section) {
-    U64 length = StrLen(line);
-    section->name = MAlloc(length - 2);
-    MemCpy(section->name, line + 1, length - 3);
-    section->name[length - 3] = 0;
+    MemSet(section, 0, sizeof(TOMLSection)); 
+
+    U8 *section_end = StrFirstOcc(line, "]");
+    if (!section_end) return;
+
+    U64 length = section_end - line;
+
+
+    section->name = MAlloc(length);
+    MemCpy(section->name, line + 1, length - 1);
+    section->name[length - 1] = 0;
 }
+
 
 TOMLFile *ReadTOMLFile(U8 *file_path) {
   TOMLFile *toml_file = MAlloc(sizeof(TOMLFile));
+  MemSet(toml_file, 0, sizeof(TOMLFile)); 
   toml_file->section_count = 0;
   toml_file->sections = 0;
 
@@ -117,7 +118,21 @@ TOMLFile *ReadTOMLFile(U8 *file_path) {
   return toml_file;
 }
 
-U0 FreeTOML(TOMLFile *toml_file) {
+
+
+U0 PrintTOMLContent(TOMLFile *toml_file) {
+    U32 i, j;
+    for (i = 0; i < toml_file->section_count; ++i) {
+        TOMLSection *section = &toml_file->sections[i];
+        Print("Section: %s\n", section->name);
+        for (j = 0; j < section->value_count; ++j) {
+            TOMLValue *value = &section->values[j];
+            Print("  Key: %s, Value: %s\n", value->key, value->value);
+        }
+    }
+}
+
+U0 FreeTOMLFile(TOMLFile *toml_file) {
   if (toml_file) {
     I64 i, j;
     for (i = 0; i < toml_file->section_count; ++i) {
@@ -144,18 +159,6 @@ U0 FreeTOML(TOMLFile *toml_file) {
   }
 }
 
-U0 PrintTOMLContent(TOMLFile *toml_file) {
-    U32 i, j;
-    for (i = 0; i < toml_file->section_count; ++i) {
-        TOMLSection *section = &toml_file->sections[i];
-        Print("Section: %s\n", section->name);
-        for (j = 0; j < section->value_count; ++j) {
-            TOMLValue *value = &section->values[j];
-            Print("  Key: %s, Value: %s\n", value->key, value->value);
-        }
-    }
-}
-
 // This isn't a permanent function.
 // This is just an example of how to use this code.
 U0 Bettr() {
@@ -163,7 +166,7 @@ U0 Bettr() {
     TOMLFile *toml_file = ReadTOMLFile("Test.toml");
     if (toml_file) {
         PrintTOMLContent(toml_file);
-        FreeTOML(toml_file);
+        FreeTOMLFile(toml_file);
     } else {
         Print("Failed to read TOML file.\n");
     }
