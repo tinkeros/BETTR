@@ -1,4 +1,5 @@
 // Constants representing data types
+#define TOML_VALUE_UNKNOWN -1
 #define TOML_VALUE_STRING 0
 #define TOML_VALUE_INT 1
 #define TOML_VALUE_FLOAT 2
@@ -28,15 +29,19 @@ class TOMLFile {
 I32 DetectValueType(U8 * value_start) {
   if (!value_start) return -1;
 
-  if ( * value_start == '\"') {
+  if ( StrFirstOcc(value_start, "\"") != NULL ) {
     return TOML_VALUE_STRING;
   } else if (StrFirstOcc(value_start, ".") != NULL) {
     return TOML_VALUE_FLOAT;
   } else if (StrCmp(value_start, "true") == 0 || StrCmp(value_start, "false") == 0) {
     return TOML_VALUE_BOOL;
   } else {
-    return TOML_VALUE_INT;
+    // very crude check start at least appears INT like
+    while (value_start && value_start == ' ') value_start++;
+    if ('0'<=*value_start<='9'  || *value_start == '-')
+      return TOML_VALUE_INT;
   }
+  return TOML_VALUE_UNKNOWN;
 }
 
 // ParseLine reads a single line of text from the TOML file and stores the key-value pair in the provided TOMLValue.
@@ -56,7 +61,7 @@ U0 ParseLine(U8 * line, TOMLValue * value) {
     key_end--;
   }
 
-  U8 * value_start = equals + 1;
+  U8 * value_start = equals + 1, * value_end;
   while ( * value_start == ' ') {
     value_start++;
   }
@@ -73,10 +78,17 @@ U0 ParseLine(U8 * line, TOMLValue * value) {
   value -> type = DetectValueType(value_start);
 
   if (value -> type == TOML_VALUE_STRING) {
-    value_len -= 2; // Exclude the quotes from the length
-    value_start++; // Exclude the first quote
+    // Exclude the first quote
+    value_end=value_start = StrFirstOcc(value_start,"\"")+1;
+    // Note: Assumes string does not contain a " 
+    value_len = 0;
+    while (*value_end && *value_end !='"')
+    {
+      value_len++;
+      value_end++;
+    }
   }
-  value -> value = MAlloc(value_len + 1);
+  value -> value = CAlloc(value_len + 1);
   if (!value -> value) {
     Free(value -> key);
     return;
@@ -304,9 +316,8 @@ U0 PrintTOMLContent(TOMLFile * toml_file) {
   }
 }
 
-U0 Bettr() {
-  // Replace "path/to/your/file.toml" with the actual path to the TOML file you want to read.
-  TOMLFile * toml_file = ReadTOMLFile("Test.toml");
+U0 Bettr(U8 *filename="Example.toml") {
+  TOMLFile * toml_file = ReadTOMLFile(filename);
   if (toml_file) {
     PrintTOMLContent(toml_file);
     FreeTOMLFile(toml_file);
