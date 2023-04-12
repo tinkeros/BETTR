@@ -1,7 +1,14 @@
-// TOMLValue represents a key-value pair in a TOML file.
+// Constants representing data types
+#define TOML_VALUE_STRING 0
+#define TOML_VALUE_INT 1
+#define TOML_VALUE_FLOAT 2
+#define TOML_VALUE_BOOL 3
+
+// TOMLValue represents a key-value pair in a TOML file. With an added "type"
 class TOMLValue {
   U8 * key;
   U8 * value;
+  I32 type;
 };
 
 // TOMLSection represents a section in a TOML file.
@@ -16,6 +23,19 @@ class TOMLFile {
   TOMLSection * sections;
   U32 section_count;
 };
+
+//  Detect the type of a value. Types are I32
+I32 DetectValueType(U8 * value_start) {
+  if ( * value_start == '\"') {
+    return TOML_VALUE_STRING;
+  } else if (StrFirstOcc(value_start, ".") != NULL) {
+    return TOML_VALUE_FLOAT;
+  } else if (StrCmp(value_start, "true") == 0 || StrCmp(value_start, "false") == 0) {
+    return TOML_VALUE_BOOL;
+  } else {
+    return TOML_VALUE_INT;
+  }
+}
 
 // ParseLine reads a single line of text from the TOML file and stores the key-value pair in the provided TOMLValue.
 U0 ParseLine(U8 * line, TOMLValue * value) {
@@ -44,8 +64,16 @@ U0 ParseLine(U8 * line, TOMLValue * value) {
   MemCpy(value -> key, key_start, key_len);
   value -> key[key_len] = 0;
 
+  // Detect the data type of the value
+  value -> type = DetectValueType(value_start);
+
+  if (value -> type == TOML_VALUE_STRING) {
+    value_len -= 2; // Exclude the quotes from the length
+    value_start++; // Exclude the first quote
+  }
   value -> value = MAlloc(value_len + 1);
-  MemCpy(value -> value, value_start, value_len + 1);
+  MemCpy(value -> value, value_start, value_len);
+  value -> value[value_len] = 0;
 }
 
 // ParseSection reads a line of text representing a section in the TOML file and stores the section name in the provided TOMLSection.
@@ -205,6 +233,7 @@ TOMLValue * FindTOMLValue(TOMLSection * section, U8 * key) {
 }
 
 // GetValue returns the value of a key-value pair within a section in a TOMLFile by its key.
+// Note: This value is a string, hence why there is a heavy focus on typecasting below.
 U8 * GetValue(TOMLFile * toml_file, U8 * section_name, U8 * key) {
   TOMLSection * section = FindTOMLSection(toml_file, section_name);
   if (section) {
@@ -216,6 +245,49 @@ U8 * GetValue(TOMLFile * toml_file, U8 * section_name, U8 * key) {
   return NULL;
 }
 
+// Typecasting to I64
+I64 GetIntValue(TOMLFile * toml_file, U8 * section_name, U8 * key) {
+  U8 * val = GetValue(toml_file, section_name, key);
+  if (val) {
+    return Str2I64(val);
+  }
+  return 0;
+}
+
+F64 GetFloatValue(TOMLFile * toml_file, U8 * section_name, U8 * key) {
+  U8 * val = GetValue(toml_file, section_name, key);
+  if (val) {
+    return Str2F64(val);
+  }
+  return 0.0;
+}
+Bool GetBoolValue(TOMLFile * toml_file, U8 * section_name, U8 * key) {
+  U8 * val = GetValue(toml_file, section_name, key);
+  if (val) {
+    if (StrCmp(val, "true") == 0) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+  return 0;
+}
+
+U8 * TypeToString(I32 type) {
+  switch (type) {
+  case TOML_VALUE_STRING:
+    return "string";
+  case TOML_VALUE_INT:
+    return "integer";
+  case TOML_VALUE_FLOAT:
+    return "float";
+  case TOML_VALUE_BOOL:
+    return "boolean";
+  default:
+    return "unknown";
+  }
+}
+
 // PrintTOMLContent is a debug function to print the content of a TOMLFile structure.
 U0 PrintTOMLContent(TOMLFile * toml_file) {
   U32 i, j;
@@ -225,7 +297,8 @@ U0 PrintTOMLContent(TOMLFile * toml_file) {
     Print("Section: %s\n", section -> name);
     for (j = 0; j < section -> value_count; ++j) {
       TOMLValue * value = & section -> values[j];
-      Print("  Key: %s, Value: %s\n", value -> key, value -> value);
+      U8 * type_string = TypeToString(value -> type);
+      Print("  Key: %s, Value: %s, Type: %s\n", value -> key, value -> value, type_string);
     }
   }
 }
