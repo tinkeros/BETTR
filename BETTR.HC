@@ -121,19 +121,6 @@ TOMLFile *ReadTOMLFile(U8 *file_path) {
 }
 
 
-
-U0 PrintTOMLContent(TOMLFile *toml_file) {
-    U32 i, j;
-    for (i = 0; i < toml_file->section_count; ++i) {
-        TOMLSection *section = &toml_file->sections[i];
-        Print("Section: %s\n", section->name);
-        for (j = 0; j < section->value_count; ++j) {
-            TOMLValue *value = &section->values[j];
-            Print("  Key: %s, Value: %s\n", value->key, value->value);
-        }
-    }
-}
-
 U0 FreeTOMLFile(TOMLFile *toml_file) {
   if (toml_file) {
     I64 i, j;
@@ -161,11 +148,60 @@ U0 FreeTOMLFile(TOMLFile *toml_file) {
   }
 }
 
+TOMLSection *FindTOMLSection(TOMLFile *toml_file, U8 *section_name) {
+    if (toml_file && section_name) {
+        U32 i;
+        for (i = 0; i < toml_file->section_count; ++i) {
+            if (StrCmp(toml_file->sections[i].name, section_name) == 0) {
+                return &toml_file->sections[i];
+            }
+        }
+    }
+    return NULL;
+}
+
+TOMLValue *FindTOMLValue(TOMLSection *section, U8 *key) {
+    if (section && key) {
+        U32 i;
+        for (i = 0; i < section->value_count; ++i) {
+            if (StrCmp(section->values[i].key, key) == 0) {
+                return &section->values[i];
+            }
+        }
+    }
+    return NULL;
+}
+
+U8 *GetValue(TOMLFile *toml_file, U8 *section_name, U8 *key) {
+    TOMLSection *section = FindTOMLSection(toml_file, section_name);
+    if (section) {
+        TOMLValue *value = FindTOMLValue(section, key);
+        if (value) {
+            return value->value;
+        }
+    }
+    return NULL;
+}
+
+// Simply a debug function
+U0 PrintTOMLContent(TOMLFile *toml_file) {
+    U32 i, j;
+    for (i = 0; i < toml_file->section_count; ++i) {
+        TOMLSection *section = &toml_file->sections[i];
+        "\n";
+        Print("Section: %s\n", section->name);
+        for (j = 0; j < section->value_count; ++j) {
+            TOMLValue *value = &section->values[j];
+            Print("  Key: %s, Value: %s\n", value->key, value->value);
+        }
+    }
+}
+
 // This isn't a permanent function.
 // This is just an example of how to use this code.
 U0 Bettr() {
     // Replace "path/to/your/file.toml" with the actual path to the TOML file you want to read.
-    TOMLFile *toml_file = ReadTOMLFile("Test.toml");
+    TOMLFile *toml_file = ReadTOMLFile("Example.toml");
     if (toml_file) {
         PrintTOMLContent(toml_file);
         FreeTOMLFile(toml_file);
