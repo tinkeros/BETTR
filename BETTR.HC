@@ -28,17 +28,15 @@ class TOMLFile {
 // Detect the type of a value. Types are I32
 I32 DetectValueType(U8 * value_start) {
   if (!value_start) return -1;
-
-  if ( StrFirstOcc(value_start, "\"") != NULL ) {
+  if (!StrCmp(value_start, "true") || !StrCmp(value_start, "false")) {
+    return TOML_VALUE_BOOL;
+  } else if (StrFirstOcc(value_start, "\"") != NULL) {
     return TOML_VALUE_STRING;
   } else if (StrFirstOcc(value_start, ".") != NULL) {
     return TOML_VALUE_FLOAT;
-  } else if (StrCmp(value_start, "true") == 0 || StrCmp(value_start, "false") == 0) {
-    return TOML_VALUE_BOOL;
   } else {
-    // very crude check start at least appears INT like
-    while (value_start && value_start == ' ') value_start++;
-    if ('0'<=*value_start<='9'  || *value_start == '-')
+    // Check if the value appears to be an integer
+    if ('0' <= *value_start && *value_start <= '9' || *value_start == '-')
       return TOML_VALUE_INT;
   }
   return TOML_VALUE_UNKNOWN;
