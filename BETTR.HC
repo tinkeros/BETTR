@@ -1,15 +1,15 @@
 // Constants representing data types
-#define TOML_VALUE_UNKNOWN -1
-#define TOML_VALUE_STRING 0
-#define TOML_VALUE_INT 1
-#define TOML_VALUE_FLOAT 2
-#define TOML_VALUE_BOOL 3
+#define TOML_VALUE_UNKNOWN "Unknown"
+#define TOML_VALUE_STRING "String"
+#define TOML_VALUE_INT "Int"
+#define TOML_VALUE_FLOAT "Float"
+#define TOML_VALUE_BOOL "Bool"
 
 // TOMLValue represents a key-value pair in a TOML file. With an added "type"
 class TOMLValue {
   U8 * key;
   U8 * value;
-  I32 type;
+  U8 * type;
 };
 
 // TOMLSection represents a section in a TOML file.
@@ -26,7 +26,7 @@ class TOMLFile {
 };
 
 // Detect the type of a value. Types are I32
-I32 DetectValueType(U8 * value_start) {
+U8 * DetectValueType(U8 * value_start) {
   if (!value_start) return -1;
   if (!StrCmp(value_start, "true") || !StrCmp(value_start, "false")) {
     return TOML_VALUE_BOOL;
@@ -128,7 +128,7 @@ TOMLFile * ReadTOMLFile(U8 * file_path) {
 
   // Read the contents of the file into memory
   U64 file_size;
-  U8 * file_data = FileRead(file_path, & file_size);
+  U8 *file_data = FileRead(file_path, &file_size);
 
   if (file_data) {
     // Iterate through the file data line by line
@@ -282,20 +282,6 @@ Bool GetBoolValue(TOMLFile * toml_file, U8 * section_name, U8 * key) {
   return 0;
 }
 
-U8 * TypeToString(I32 type) {
-  switch (type) {
-  case TOML_VALUE_STRING:
-    return "string";
-  case TOML_VALUE_INT:
-    return "integer";
-  case TOML_VALUE_FLOAT:
-    return "float";
-  case TOML_VALUE_BOOL:
-    return "boolean";
-  default:
-    return "unknown";
-  }
-}
 
 // PrintTOMLContent prints the content of a TOML file.
 U0 PrintTOMLContent(TOMLFile * toml_file) {
@@ -307,7 +293,7 @@ U0 PrintTOMLContent(TOMLFile * toml_file) {
 
     for (value_idx = 0; value_idx < section -> value_count; value_idx++) {
       TOMLValue * value = & section -> values[value_idx];
-      "%s = %s (%s)\n", value -> key, value -> value, TypeToString(value -> type);
+      "%s = %s (%s)\n", value -> key, value -> value, value -> type;
     }
 
     "\n";
