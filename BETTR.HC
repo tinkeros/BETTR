@@ -1,15 +1,16 @@
 // Constants representing data types
-#define TOML_VALUE_UNKNOWN "Unknown"
-#define TOML_VALUE_STRING "String"
-#define TOML_VALUE_INT "Int"
-#define TOML_VALUE_FLOAT "Float"
-#define TOML_VALUE_BOOL "Bool"
+DefineLstLoad("ST_TOML_TYPES","Unknown\0String\0Int\0Float\0Bool\0");
+#define TOML_VALUE_UNKNOWN 0
+#define TOML_VALUE_STRING 1
+#define TOML_VALUE_INT 2
+#define TOML_VALUE_FLOAT 3
+#define TOML_VALUE_BOOL 4
 
 // TOMLValue represents a key-value pair in a TOML file. With an added "type"
 class TOMLValue {
   U8 * key;
   U8 * value;
-  U8 * type;
+  I32 type;
 };
 
 // TOMLSection represents a section in a TOML file.
@@ -26,8 +27,8 @@ class TOMLFile {
 };
 
 // Detect the type of a value. Types are I32
-U8 * DetectValueType(U8 * value_start) {
-  if (!value_start) return -1;
+I32 DetectValueType(U8 * value_start) {
+  if (!value_start) return TOML_VALUE_UNKNOWN;
   if (!StrCmp(value_start, "true") || !StrCmp(value_start, "false")) {
     return TOML_VALUE_BOOL;
   } else if (StrFirstOcc(value_start, "\"") != NULL) {
@@ -293,9 +294,9 @@ U0 PrintTOMLContent(TOMLFile * toml_file) {
 
     for (value_idx = 0; value_idx < section -> value_count; value_idx++) {
       TOMLValue * value = & section -> values[value_idx];
-      "%s = %s (%s)\n", value -> key, value -> value, value -> type;
+      "%s = %s (%s)\n", value -> key, 
+      value -> value, DefineSub(value -> type,"ST_TOML_TYPES");
     }
-
     "\n";
   }
 }
